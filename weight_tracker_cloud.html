@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weight Journey Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0d1117;color:#e6edf3;font-family:'DM Sans',sans-serif;min-height:100vh}
+  input,select{outline:none;font-family:inherit}
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:#0d1117}
+  ::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+  .tab-btn,.btn-primary,.mode-pill,.del-btn,.edit-btn{cursor:pointer;transition:all 0.18s}
+  .tab-btn:hover{background:#1c2330!important}
+  .btn-primary:hover{filter:brightness(1.12);transform:translateY(-1px)}
+  .row-hover{transition:background 0.13s}
+  .row-hover:hover{background:#1c2330!important}
+  .del-btn:hover{background:rgba(224,92,122,0.15)!important;color:#e05c7a!important}
+  .edit-btn:hover{background:rgba(88,196,160,0.12)!important;color:#58c4a0!important}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px}
+</style>
+</head>
+<body>
+<div id="app" style="max-width:760px;margin:0 auto;padding:1.5rem 1rem 4rem"></div>
+
+<!-- Toast -->
+<div id="toast" style="display:none;position:fixed;top:20px;right:20px;z-index:999;padding:0.75rem 1.25rem;border-radius:12px;font-size:0.85rem;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:fadeUp 0.25s ease"></div>
+
+<!-- Delete Modal -->
+<div id="deleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:998;align-items:center;justify-content:center">
+  <div style="background:#1c2330;border:1px solid #30363d;border-radius:16px;padding:2rem;max-width:340px;width:90%;text-align:center">
+    <div style="font-size:2rem;margin-bottom:0.75rem">🗑️</div>
+    <div style="font-family:'DM Serif Display',serif;font-size:1.2rem;margin-bottom:0.5rem">Delete this entry?</div>
+    <div id="deleteInfo" style="color:#7d8590;font-size:0.85rem;margin-bottom:1.5rem"></div>
+    <div style="display:flex;gap:0.75rem;justify-content:center">
+      <button onclick="closeDeleteModal()" style="padding:0.6rem 1.4rem;background:#161b22;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:0.85rem;font-family:inherit">Cancel</button>
+      <button onclick="confirmDelete()" style="padding:0.6rem 1.4rem;background:#e05c7a22;border:1px solid #e05c7a44;border-radius:8px;color:#e05c7a;font-size:0.85rem;font-weight:600;font-family:inherit">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Setup Modal -->
+<div id="setupModal" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:#1c2330;border:1px solid #30363d;border-radius:20px;padding:2rem;max-width:480px;width:100%">
+    <div style="font-family:'DM Serif Display',serif;font-size:1.6rem;margin-bottom:0.5rem;background:linear-gradient(135deg,#58c4a0,#4a9eff);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Connect Google Sheets</div>
+    <p style="color:#7d8590;font-size:0.85rem;line-height:1.6;margin-bottom:1.5rem">Your data will sync across all your devices via a private Google Sheet. Follow these steps once:</p>
+
+    <div style="display:flex;flex-direction:column;gap:0.8rem;margin-bottom:1.5rem">
+      <div style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:0.9rem 1rem;font-size:0.82rem;line-height:1.6">
+        <strong style="color:#58c4a0">1.</strong> Go to <a href="https://sheets.google.com" target="_blank" style="color:#4a9eff">sheets.google.com</a> and create a new blank spreadsheet
+      </div>
+      <div style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:0.9rem 1rem;font-size:0.82rem;line-height:1.6">
+        <strong style="color:#58c4a0">2.</strong> Click <strong>Extensions → Apps Script</strong>. Delete any existing code and paste in the contents of <code style="background:#0d1117;padding:0.1rem 0.4rem;border-radius:4px;color:#f7a440">Code.gs</code>
+      </div>
+      <div style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:0.9rem 1rem;font-size:0.82rem;line-height:1.6">
+        <strong style="color:#58c4a0">3.</strong> Click <strong>Deploy → New deployment</strong>. Choose type <strong>Web app</strong>. Set <em>Who has access</em> to <strong>Anyone</strong>. Click Deploy and authorise
+      </div>
+      <div style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:0.9rem 1rem;font-size:0.82rem;line-height:1.6">
+        <strong style="color:#58c4a0">4.</strong> Copy the <strong>Web app URL</strong> and paste it below
+      </div>
+    </div>
+
+    <label style="display:block;margin-bottom:1rem">
+      <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:#7d8590;margin-bottom:0.4rem">Web App URL</div>
+      <input id="setupUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec"
+        style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:0.75rem 1rem;color:#e6edf3;font-size:0.85rem">
+    </label>
+
+    <div style="display:flex;gap:0.75rem;align-items:center">
+      <button onclick="saveApiUrl()" class="btn-primary" style="flex:1;padding:0.75rem;background:linear-gradient(135deg,#58c4a0,#4a9eff);border:none;border-radius:12px;color:#0d1117;font-weight:700;font-size:0.9rem;font-family:inherit">
+        Connect & Load Data
+      </button>
+    </div>
+    <div id="setupError" style="color:#e05c7a;font-size:0.78rem;margin-top:0.75rem;display:none"></div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'wt-api-url';
+const START_LBS = 252;
+const TARGET_LBS = 182;
+const HEIGHT_M = 1.73;
+
+const DOSE_COLORS = {
+  '2.5mg':'#58c4a0','5mg':'#4a9eff','7.5mg':'#a78bfa',
+  '10mg':'#f7a440','12.5mg':'#e05c7a','6.25mg':'#fb923c',
+  '15mg':'#c084fc','other':'#94a3b8'
+};
+
+const HISTORICAL_DATA = [
+  {date:'2025-06-14',lbs:252,bmi:41.0,dose:'2.5mg',notes:'Start'},
+  {date:'2025-06-21',lbs:244,bmi:39.7,dose:'2.5mg',notes:''},
+  {date:'2025-06-28',lbs:241,bmi:39.2,dose:'2.5mg',notes:''},
+  {date:'2025-07-05',lbs:237,bmi:38.5,dose:'2.5mg',notes:''},
+  {date:'2025-07-12',lbs:236,bmi:38.4,dose:'2.5mg',notes:''},
+  {date:'2025-07-19',lbs:234,bmi:38.1,dose:'5mg',notes:''},
+  {date:'2025-07-26',lbs:232,bmi:37.7,dose:'5mg',notes:''},
+  {date:'2025-08-02',lbs:232,bmi:37.7,dose:'5mg',notes:''},
+  {date:'2025-08-09',lbs:229,bmi:37.2,dose:'5mg',notes:''},
+  {date:'2025-08-16',lbs:227,bmi:36.9,dose:'7.5mg',notes:''},
+  {date:'2025-08-23',lbs:225,bmi:36.6,dose:'7.5mg',notes:''},
+  {date:'2025-08-30',lbs:226,bmi:36.8,dose:'7.5mg',notes:'Barcelona'},
+  {date:'2025-09-06',lbs:224,bmi:36.4,dose:'7.5mg',notes:''},
+  {date:'2025-09-13',lbs:223,bmi:36.3,dose:'7.5mg',notes:''},
+  {date:'2025-09-20',lbs:221,bmi:35.9,dose:'10mg',notes:''},
+  {date:'2025-09-27',lbs:219,bmi:35.6,dose:'10mg',notes:''},
+  {date:'2025-10-04',lbs:219,bmi:35.6,dose:'10mg',notes:''},
+  {date:'2025-10-11',lbs:217,bmi:35.3,dose:'10mg',notes:''},
+  {date:'2025-10-18',lbs:218,bmi:35.5,dose:'10mg',notes:''},
+  {date:'2025-10-25',lbs:215,bmi:35.0,dose:'10mg',notes:''},
+  {date:'2025-11-01',lbs:214,bmi:34.8,dose:'10mg',notes:''},
+  {date:'2025-11-08',lbs:216,bmi:35.1,dose:'10mg',notes:''},
+  {date:'2025-11-15',lbs:214,bmi:34.8,dose:'10mg',notes:''},
+  {date:'2025-11-22',lbs:212,bmi:34.5,dose:'10mg',notes:''},
+  {date:'2025-11-29',lbs:209,bmi:34.0,dose:'12.5mg',notes:''},
+  {date:'2025-12-06',lbs:208,bmi:33.8,dose:'12.5mg',notes:''},
+  {date:'2025-12-13',lbs:208,bmi:33.8,dose:'12.5mg',notes:''},
+  {date:'2025-12-20',lbs:206,bmi:33.5,dose:'12.5mg',notes:''},
+  {date:'2025-12-27',lbs:206,bmi:33.5,dose:'12.5mg',notes:'Christmas'},
+  {date:'2026-01-03',lbs:209,bmi:34.0,dose:'12.5mg',notes:'New Year'},
+  {date:'2026-01-10',lbs:208,bmi:33.8,dose:'12.5mg',notes:''},
+  {date:'2026-01-17',lbs:207,bmi:33.7,dose:'12.5mg',notes:''},
+  {date:'2026-01-24',lbs:206,bmi:33.5,dose:'12.5mg',notes:''},
+  {date:'2026-01-31',lbs:205,bmi:33.3,dose:'12.5mg',notes:''},
+  {date:'2026-02-07',lbs:204,bmi:33.2,dose:'6.25mg',notes:'Half dose'},
+  {date:'2026-02-14',lbs:203,bmi:33.0,dose:'6.25mg',notes:''},
+  {date:'2026-02-21',lbs:203,bmi:33.0,dose:'6.25mg',notes:''},
+  {date:'2026-02-28',lbs:202,bmi:32.9,dose:'6.25mg',notes:''},
+  {date:'2026-03-07',lbs:203,bmi:33.0,dose:'6.25mg',notes:''},
+  {date:'2026-03-14',lbs:202,bmi:32.9,dose:'6.25mg',notes:''},
+  {date:'2026-03-21',lbs:201,bmi:32.7,dose:'6.25mg',notes:''},
+  {date:'2026-03-28',lbs:198,bmi:32.2,dose:'6.25mg',notes:''},
+  {date:'2026-04-04',lbs:197,bmi:32.0,dose:'6.25mg',notes:''},
+  {date:'2026-04-12',lbs:195,bmi:31.7,dose:'6.25mg',notes:''},
+];
+
+async function importHistory() {
+  const btn = document.getElementById('importBtn');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Importing 44 entries…';
+  try {
+    const result = await api('bulkImport', { entries: HISTORICAL_DATA });
+    entries = [...HISTORICAL_DATA];
+    showToast('Imported ' + result.imported + ' historical entries ✓');
+    render();
+  } catch(e) {
+    showToast('Import failed: ' + e.message, 'error');
+    btn.disabled = false;
+    btn.innerHTML = '📥 Import History';
+  }
+}
+
+let entries = [];
+let apiUrl = '';
+let currentTab = 'dashboard';
+let editIndex = null;
+let deleteIndex = null;
+let loading = false;
+let syncing = false;
+let form = {
+  date: new Date().toISOString().slice(0,10),
+  stones:'', lbs_part:'', lbs_total:'',
+  inputMode:'stones', dose:'6.25mg', notes:''
+};
+
+// ── API ──
+async function api(action, extra = {}) {
+  const body = JSON.stringify({ action, ...extra });
+  const res = await fetch(apiUrl, { method: 'POST', body });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return json;
+}
+
+async function loadEntries() {
+  loading = true; render();
+  try {
+    const data = await api('getAll');
+    entries = data.entries || [];
+    loading = false;
+    render();
+  } catch(e) {
+    loading = false;
+    showToast('Could not load data: ' + e.message, 'error');
+    render();
+  }
+}
+
+// ── Setup ──
+function checkSetup() {
+  apiUrl = localStorage.getItem(STORAGE_KEY) || '';
+  if (apiUrl) {
+    document.getElementById('setupModal').style.display = 'none';
+    loadEntries();
+  }
+}
+
+async function saveApiUrl() {
+  const url = document.getElementById('setupUrl').value.trim();
+  const errEl = document.getElementById('setupError');
+  errEl.style.display = 'none';
+  if (!url.includes('script.google.com')) {
+    errEl.textContent = 'That doesn\'t look like a Google Apps Script URL. Please check and try again.';
+    errEl.style.display = 'block'; return;
+  }
+  const btn = document.querySelector('#setupModal .btn-primary');
+  btn.innerHTML = '<span class="spinner"></span>Testing connection…';
+  btn.disabled = true;
+  try {
+    apiUrl = url;
+    const data = await api('getAll');
+    localStorage.setItem(STORAGE_KEY, url);
+    entries = data.entries || [];
+    document.getElementById('setupModal').style.display = 'none';
+    render();
+    showToast('Connected! ' + entries.length + ' entries loaded ✓');
+  } catch(e) {
+    errEl.textContent = 'Connection failed: ' + e.message + '. Check the URL and that the deployment allows "Anyone".';
+    errEl.style.display = 'block';
+    apiUrl = '';
+  } finally {
+    btn.innerHTML = 'Connect & Load Data';
+    btn.disabled = false;
+  }
+}
+
+function resetConnection() {
+  localStorage.removeItem(STORAGE_KEY);
+  apiUrl = '';
+  entries = [];
+  document.getElementById('setupModal').style.display = 'flex';
+  document.getElementById('setupUrl').value = '';
+  document.getElementById('setupError').style.display = 'none';
+}
+
+// ── Helpers ──
+function lbsToStLbs(lbs) { return Math.floor(lbs/14)+'st '+(lbs%14)+'lb'; }
+function calcBMI(lbs) { return +((lbs*0.453592)/(HEIGHT_M*HEIGHT_M)).toFixed(1); }
+function getLbs() {
+  if (form.inputMode === 'stones') {
+    const st = parseInt(document.getElementById('inputStones')?.value ?? form.stones)||0;
+    const lb = parseInt(document.getElementById('inputLbsPart')?.value ?? form.lbs_part)||0;
+    return st*14+lb;
+  }
+  return parseInt(document.getElementById('inputLbsTotal')?.value ?? form.lbs_total)||0;
+}
+function getStats() {
+  if (!entries.length) return null;
+  const sorted = [...entries].sort((a,b)=>a.date.localeCompare(b.date));
+  const first=sorted[0], last=sorted[sorted.length-1];
+  const totalLost=first.lbs-last.lbs;
+  const weeks=sorted.length-1;
+  const avgPerWeek=weeks>0?+(totalLost/weeks).toFixed(1):0;
+  const toGo=last.lbs-TARGET_LBS;
+  const pct=+Math.min((totalLost/(first.lbs-TARGET_LBS))*100,100).toFixed(1);
+  const weeksLeft=avgPerWeek>0?Math.ceil(toGo/avgPerWeek):null;
+  const prev=sorted.length>1?sorted[sorted.length-2]:null;
+  const lastChange=prev?last.lbs-prev.lbs:0;
+  return {first,last,totalLost,avgPerWeek,toGo,pct,weeksLeft,lastChange};
+}
+
+// ── Toast ──
+let toastTimer;
+function showToast(msg, type='success') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.display='block';
+  t.style.background=type==='error'?'#2d1a1f':'#1a2d24';
+  t.style.border='1px solid '+(type==='error'?'#e05c7a44':'#58c4a044');
+  t.style.color=type==='error'?'#e05c7a':'#58c4a0';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.style.display='none',3500);
+}
+
+// ── Delete ──
+function openDeleteModal(idx) {
+  deleteIndex=idx;
+  const e=entries[idx];
+  document.getElementById('deleteInfo').textContent=e.date+' · '+lbsToStLbs(e.lbs);
+  document.getElementById('deleteModal').style.display='flex';
+}
+function closeDeleteModal() {
+  deleteIndex=null;
+  document.getElementById('deleteModal').style.display='none';
+}
+async function confirmDelete() {
+  if (deleteIndex===null) return;
+  const idx=deleteIndex;
+  closeDeleteModal();
+  syncing=true; render();
+  try {
+    await api('delete',{index:idx});
+    entries.splice(idx,1);
+    showToast('Entry deleted');
+  } catch(e) { showToast('Delete failed: '+e.message,'error'); }
+  syncing=false; render();
+}
+
+// ── Form ──
+function setTab(tab) {
+  currentTab=tab;
+  if (tab!=='add') { editIndex=null; resetFormFields(); }
+  render();
+}
+function resetFormFields() {
+  form.stones=''; form.lbs_part=''; form.lbs_total=''; form.notes='';
+  form.date=new Date().toISOString().slice(0,10);
+}
+function setInputMode(mode) { form.inputMode=mode; render(); }
+function renderPreview() {
+  const lbs=getLbs();
+  const el=document.getElementById('weightPreview');
+  if (!el) return;
+  el.textContent = lbs>100 ? '= '+lbs+' lbs \u00b7 '+lbsToStLbs(lbs)+' \u00b7 BMI '+calcBMI(lbs) : '';
+  el.style.color='#58c4a0';
+}
+async function handleSave() {
+  const dateVal=document.getElementById('inputDate')?.value||form.date;
+  const doseVal=document.getElementById('inputDose')?.value||form.dose;
+  const notesVal=document.getElementById('inputNotes')?.value||'';
+  form.date=dateVal; form.dose=doseVal; form.notes=notesVal;
+  if (form.inputMode==='stones') {
+    form.stones=document.getElementById('inputStones')?.value??form.stones;
+    form.lbs_part=document.getElementById('inputLbsPart')?.value??form.lbs_part;
+  } else {
+    form.lbs_total=document.getElementById('inputLbsTotal')?.value??form.lbs_total;
+  }
+  const lbs=getLbs();
+  if (!dateVal||lbs<100||lbs>600) { showToast('Please enter a valid date and weight','error'); return; }
+  const entry={date:dateVal,lbs,bmi:calcBMI(lbs),dose:doseVal,notes:notesVal};
+
+  const saveBtn=document.getElementById('saveBtn');
+  if (saveBtn) { saveBtn.disabled=true; saveBtn.innerHTML='<span class="spinner"></span>Saving…'; }
+  syncing=true;
+  try {
+    if (editIndex!==null) {
+      await api('update',{index:editIndex,entry});
+      entries[editIndex]=entry;
+      editIndex=null;
+      showToast('Entry updated ✓');
+    } else {
+      await api('save',{entry});
+      entries.push(entry);
+      showToast('Entry saved ✓');
+    }
+    resetFormFields();
+    currentTab='dashboard';
+  } catch(e) { showToast('Save failed: '+e.message,'error'); }
+  syncing=false; render();
+}
+function handleEdit(idx) {
+  const e=entries[idx];
+  form.date=e.date; form.stones=Math.floor(e.lbs/14); form.lbs_part=e.lbs%14;
+  form.lbs_total=e.lbs; form.inputMode='stones'; form.dose=e.dose; form.notes=e.notes||'';
+  editIndex=idx; currentTab='add'; render();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── Chart ──
+function drawChart(id,ents) {
+  const canvas=document.getElementById(id);
+  if (!canvas||ents.length<2) return;
+  const ctx=canvas.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  const rect=canvas.getBoundingClientRect();
+  canvas.width=rect.width*dpr; canvas.height=rect.height*dpr;
+  ctx.scale(dpr,dpr);
+  const w=rect.width,h=rect.height,pad={t:10,r:10,b:28,l:38};
+  const vals=ents.map(e=>e.lbs);
+  const mn=Math.min(...vals,TARGET_LBS)-5,mx=Math.max(...vals)+5;
+  const toX=i=>pad.l+(i/(ents.length-1))*(w-pad.l-pad.r);
+  const toY=v=>pad.t+(1-(v-mn)/(mx-mn))*(h-pad.t-pad.b);
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle='#1e2530';ctx.lineWidth=1;
+  [.25,.5,.75].forEach(f=>{const y=pad.t+f*(h-pad.t-pad.b);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();});
+  ctx.strokeStyle='#4a9eff55';ctx.setLineDash([4,3]);ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(pad.l,toY(TARGET_LBS));ctx.lineTo(w-pad.r,toY(TARGET_LBS));ctx.stroke();
+  ctx.setLineDash([]);
+  const grad=ctx.createLinearGradient(0,pad.t,0,h-pad.b);
+  grad.addColorStop(0,'rgba(88,196,160,0.25)');grad.addColorStop(1,'rgba(88,196,160,0.02)');
+  ctx.beginPath();ctx.moveTo(toX(0),toY(vals[0]));
+  for(let i=1;i<ents.length;i++){const cpx=(toX(i-1)+toX(i))/2;ctx.bezierCurveTo(cpx,toY(vals[i-1]),cpx,toY(vals[i]),toX(i),toY(vals[i]));}
+  ctx.lineTo(toX(ents.length-1),h-pad.b);ctx.lineTo(toX(0),h-pad.b);ctx.closePath();
+  ctx.fillStyle=grad;ctx.fill();
+  ctx.strokeStyle='#58c4a0';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(toX(0),toY(vals[0]));
+  for(let i=1;i<ents.length;i++){const cpx=(toX(i-1)+toX(i))/2;ctx.bezierCurveTo(cpx,toY(vals[i-1]),cpx,toY(vals[i]),toX(i),toY(vals[i]));}
+  ctx.stroke();
+  ents.forEach((e,i)=>{
+    const c=DOSE_COLORS[e.dose]||DOSE_COLORS.other;
+    ctx.beginPath();ctx.arc(toX(i),toY(e.lbs),3.5,0,Math.PI*2);
+    ctx.fillStyle=c;ctx.fill();ctx.strokeStyle='#0d1117';ctx.lineWidth=1.5;ctx.stroke();
+  });
+  ctx.fillStyle='#7d8590';ctx.font='10px DM Sans,sans-serif';ctx.textAlign='right';
+  [mn+5,Math.round((mn+mx)/2),mx-5].forEach(v=>ctx.fillText(v,pad.l-4,toY(v)+3));
+  ctx.textAlign='center';
+  [0,Math.floor((ents.length-1)/2),ents.length-1].forEach(i=>ctx.fillText(ents[i].date.slice(5),toX(i),h-6));
+}
+
+// ── Render ──
+function render() {
+  const stats=getStats();
+  const sortedAsc=[...entries].sort((a,b)=>a.date.localeCompare(b.date));
+  const sortedDesc=[...entries].sort((a,b)=>b.date.localeCompare(a.date));
+  let html='';
+
+  // Header
+  const syncBadge=syncing
+    ?'<span style="font-size:0.75rem;color:#f7a440;display:flex;align-items:center;gap:4px"><span class="spinner" style="border-top-color:#f7a440;border-color:rgba(247,164,64,0.2)"></span>Syncing…</span>'
+    :'<span style="font-size:0.75rem;color:#58c4a0;cursor:pointer" onclick="loadEntries()" title="Refresh">☁️ Synced</span>';
+
+  html+=`<div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:flex-start">
+    <div>
+      <h1 style="font-family:'DM Serif Display',serif;font-size:clamp(1.8rem,5vw,2.8rem);background:linear-gradient(135deg,#58c4a0,#4a9eff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.1">Weight Journey</h1>
+      <p style="color:#7d8590;font-size:0.85rem;margin-top:0.25rem">${stats?lbsToStLbs(stats.last.lbs)+' \u00b7 '+stats.totalLost+' lbs lost \u00b7 '+stats.pct+'% to goal':loading?'Loading…':'No data yet'}</p>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;margin-top:0.3rem">
+      ${syncBadge}
+      <span style="font-size:0.7rem;color:#30363d;cursor:pointer" onclick="resetConnection()" title="Change Google Sheet">⚙️ reconnect</span>
+    </div>
+  </div>`;
+
+  // Tabs
+  html+=`<div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;background:#161b22;border-radius:12px;padding:0.3rem">`;
+  [['dashboard','📊 Dashboard'],['add',editIndex!==null?'✏️ Edit Entry':'➕ Log Weight'],['history','📋 History']].forEach(([id,lbl])=>{
+    const a=currentTab===id;
+    html+=`<button class="tab-btn" onclick="setTab('${id}')" style="flex:1;padding:0.55rem 0.5rem;border-radius:9px;border:none;font-size:0.82rem;font-weight:500;font-family:inherit;background:${a?'#1c2330':'transparent'};color:${a?'#e6edf3':'#7d8590'};box-shadow:${a?'0 1px 4px rgba(0,0,0,0.3)':'none'}">${lbl}</button>`;
+  });
+  html+=`</div>`;
+
+  // Loading state
+  if (loading) {
+    html+=`<div style="text-align:center;padding:3rem;color:#7d8590"><span class="spinner" style="border-top-color:#58c4a0;border-color:rgba(88,196,160,0.2);width:24px;height:24px;border-width:3px"></span><br><br>Loading from Google Sheets…</div>`;
+    document.getElementById('app').innerHTML=html; return;
+  }
+
+  // ── DASHBOARD ──
+  if (currentTab==='dashboard' && stats) {
+    const sc=[
+      {label:'Current',value:lbsToStLbs(stats.last.lbs),sub:stats.last.lbs+' lbs \u00b7 BMI '+stats.last.bmi,accent:'#58c4a0'},
+      {label:'Total Lost',value:stats.totalLost+' lbs',sub:lbsToStLbs(stats.totalLost)+' lost',accent:'#f7a440'},
+      {label:'To Goal',value:stats.toGo+' lbs',sub:stats.weeksLeft?'~'+stats.weeksLeft+' wks at current pace':'Goal reached! 🎉',accent:'#4a9eff'},
+      {label:'Avg/Week',value:stats.avgPerWeek+' lbs',sub:stats.lastChange===0?'no change last wk':(stats.lastChange>0?'+':'')+stats.lastChange+' lbs last week',accent:stats.lastChange<=0?'#58c4a0':'#e05c7a'},
+    ];
+    html+=`<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.8rem;margin-bottom:1rem">`;
+    sc.forEach(s=>{
+      html+=`<div style="background:#161b22;border:1px solid #30363d;border-radius:14px;padding:1rem 1.2rem;position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${s.accent};border-radius:14px 14px 0 0"></div>
+        <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:#7d8590;margin-bottom:0.4rem">${s.label}</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:1.6rem;line-height:1;color:${s.accent}">${s.value}</div>
+        <div style="font-size:0.72rem;color:#7d8590;margin-top:0.3rem">${s.sub}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+
+    html+=`<div style="background:#161b22;border:1px solid #30363d;border-radius:14px;padding:1.2rem;margin-bottom:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem">
+        <span style="font-family:'DM Serif Display',serif;font-size:1rem">Goal Progress</span>
+        <span style="color:#58c4a0;font-weight:600">${stats.pct}%</span>
+      </div>
+      <div style="background:#0d1117;border-radius:100px;height:12px;overflow:hidden">
+        <div style="width:${stats.pct}%;height:100%;background:linear-gradient(90deg,#58c4a0,#4a9eff);border-radius:100px"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#7d8590;margin-top:0.5rem">
+        <span>Start: ${lbsToStLbs(START_LBS)}</span><span>Target: 13st 0lb</span>
+      </div>
+    </div>`;
+
+    const usedDoses=[...new Set(entries.map(e=>e.dose))];
+    const pills=usedDoses.map(d=>`<span style="font-size:0.7rem;padding:0.2rem 0.6rem;border-radius:100px;background:${DOSE_COLORS[d]||'#94a3b8'}22;color:${DOSE_COLORS[d]||'#94a3b8'};border:1px solid ${DOSE_COLORS[d]||'#94a3b8'}44">${d}</span>`).join('');
+    html+=`<div style="background:#161b22;border:1px solid #30363d;border-radius:14px;padding:1.2rem;margin-bottom:1rem">
+      <div style="font-family:'DM Serif Display',serif;font-size:1rem;margin-bottom:0.25rem">Weight Over Time</div>
+      <div style="font-size:0.72rem;color:#7d8590;margin-bottom:0.8rem">Coloured dots = dose \u00b7 dashed = target (13st 0lb)</div>
+      <canvas id="mainChart" style="width:100%;height:220px;display:block"></canvas>
+      <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.8rem">${pills}</div>
+    </div>`;
+
+    html+=`<div style="background:#161b22;border:1px solid #30363d;border-radius:14px;padding:1rem 1.2rem;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:#7d8590">Last logged</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:1.1rem;margin-top:0.2rem">${stats.last.date}</div>
+        ${stats.last.notes?'<div style="font-size:0.75rem;color:#7d8590;margin-top:0.2rem">"'+stats.last.notes+'"</div>':''}
+      </div>
+      <button class="btn-primary" onclick="setTab('add')" style="background:linear-gradient(135deg,#58c4a0,#4a9eff);border:none;border-radius:10px;padding:0.6rem 1.2rem;color:#0d1117;font-weight:600;font-size:0.82rem;font-family:inherit">+ Log New</button>
+    </div>`;
+  // Show import button if sheet is empty
+  if (entries.length === 0) {
+    html+=`<div style="margin-top:1rem;background:#161b22;border:1px solid #f7a44033;border-radius:14px;padding:1rem 1.2rem;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:0.85rem;font-weight:500;color:#f7a440">No data in Google Sheet</div>
+        <div style="font-size:0.75rem;color:#7d8590;margin-top:0.2rem">Click to populate with your 44 weeks of history</div>
+      </div>
+      <button id="importBtn" class="btn-primary" onclick="importHistory()" style="background:#f7a44022;border:1px solid #f7a44044;border-radius:10px;padding:0.6rem 1rem;color:#f7a440;font-weight:600;font-size:0.82rem;font-family:inherit;white-space:nowrap">&#128229; Import History</button>
+    </div>`;
+  }
+  } else if (currentTab==='dashboard' && !loading) {
+    html+=`<div style="text-align:center;padding:2rem;color:#7d8590">
+      <div style="margin-bottom:1.5rem">No entries yet.</div>
+      <div style="display:flex;flex-direction:column;gap:0.75rem;align-items:center">
+        <button id="importBtn" class="btn-primary" onclick="importHistory()" style="background:#f7a44022;border:1px solid #f7a44044;border-radius:10px;padding:0.7rem 1.4rem;color:#f7a440;font-weight:600;font-size:0.88rem;font-family:inherit">&#128229; Import 44 weeks of history</button>
+        <button class="btn-primary" onclick="setTab('add')" style="background:linear-gradient(135deg,#58c4a0,#4a9eff);border:none;border-radius:10px;padding:0.7rem 1.4rem;color:#0d1117;font-weight:600;font-size:0.88rem;font-family:inherit">Log your first weight</button>
+      </div>
+    </div>`;
+  }
+
+  // ── ADD / EDIT ──
+  if (currentTab==='add') {
+    const sv=form.stones!==''?form.stones:(editIndex!==null?Math.floor(entries[editIndex].lbs/14):'');
+    const lv=form.lbs_part!==''?form.lbs_part:(editIndex!==null?entries[editIndex].lbs%14:'');
+    const tv=form.lbs_total!==''?form.lbs_total:(editIndex!==null?entries[editIndex].lbs:'');
+    const pLbs=getLbs();
+    const preview=pLbs>100?'= '+pLbs+' lbs \u00b7 '+lbsToStLbs(pLbs)+' \u00b7 BMI '+calcBMI(pLbs):'';
+
+    html+=`<div style="background:#161b22;border:1px solid #30363d;border-radius:16px;padding:1.5rem">
+      <div style="font-family:'DM Serif Display',serif;font-size:1.3rem;margin-bottom:1.2rem">${editIndex!==null?'Edit Entry':'Log New Weight'}</div>
+      <label style="display:block;margin-bottom:1rem">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:#7d8590;margin-bottom:0.4rem">Date</div>
+        <input id="inputDate" type="date" value="${form.date}" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:0.7rem 0.9rem;color:#e6edf3;font-size:0.9rem">
+      </label>
+      <div style="margin-bottom:1rem">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:#7d8590;margin-bottom:0.4rem">Weight</div>
+        <div style="display:flex;gap:0.5rem;margin-bottom:0.7rem">
+          <button class="mode-pill" onclick="setInputMode('stones')" style="flex:1;padding:0.45rem;border-radius:8px;border:1px solid ${form.inputMode==='stones'?'#58c4a0':'#30363d'};background:${form.inputMode==='stones'?'#58c4a022':'transparent'};color:${form.inputMode==='stones'?'#58c4a0':'#7d8590'};font-size:0.78rem;font-family:inherit">Stones & Pounds</button>
+          <button class="mode-pill" onclick="setInputMode('lbs')" style="flex:1;padding:0.45rem;border-radius:8px;border:1px solid ${form.inputMode==='lbs'?'#58c4a0':'#30363d'};background:${form.inputMode==='lbs'?'#58c4a022':'transparent'};color:${form.inputMode==='lbs'?'#58c4a0':'#7d8590'};font-size:0.78rem;font-family:inherit">Total Pounds</button>
+        </div>`;
+    if (form.inputMode==='stones') {
+      html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem">
+        <div><div style="font-size:0.7rem;color:#7d8590;margin-bottom:0.3rem">Stones</div>
+        <input id="inputStones" type="number" min="8" max="30" value="${sv}" oninput="renderPreview()" placeholder="13" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:0.7rem 0.9rem;color:#e6edf3;font-size:1rem"></div>
+        <div><div style="font-size:0.7rem;color:#7d8590;margin-bottom:0.3rem">Pounds (0–13)</div>
+        <input id="inputLbsPart" type="number" min="0" max="13" value="${lv}" oninput="renderPreview()" placeholder="9" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:0.7rem 0.9rem;color:#e6edf3;font-size:1rem"></div>
+      </div>`;
+    } else {
+      html+=`<input id="inputLbsTotal" type="number" min="100" max="500" value="${tv}" oninput="renderPreview()" placeholder="195" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:0.7rem 0.9rem;color:#e6edf3;font-size:1rem">`;
+    }
+    html+=`<div id="weightPreview" style="font-size:0.78rem;color:#58c4a0;margin-top:0.5rem;min-height:1.2em">${preview}</div></div>
+      <label style="display:block;margin-bottom:1rem">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:#7d8590;margin-bottom:0.4rem">Dose</div>
+        <select id="inputDose" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:0.7rem 0.9rem;color:#e6edf3;font-size:0.9rem">
+          ${['2.5mg','5mg','6.25mg','7.5mg','10mg','12.5mg','15mg','other'].map(d=>`<option value="${d}"${form.dose===d?' selected':''}>${d}</option>`).join('')}
+        </select>
+      </label>
+      <label style="display:block;margin-bottom:1.5rem">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:#7d8590;margin-bottom:0.4rem">Notes (optional)</div>
+        <input id="inputNotes" type="text" value="${form.notes||''}" placeholder="e.g. Holiday, new pen, feeling good…" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:0.7rem 0.9rem;color:#e6edf3;font-size:0.9rem">
+      </label>
+      <div style="display:flex;gap:0.75rem">
+        ${editIndex!==null?'<button onclick="editIndex=null;setTab(\'dashboard\')" style="flex:1;padding:0.75rem;background:#161b22;border:1px solid #30363d;border-radius:12px;color:#7d8590;font-size:0.9rem;font-family:inherit">Cancel</button>':''}
+        <button id="saveBtn" class="btn-primary" onclick="handleSave()" style="flex:2;padding:0.75rem;background:linear-gradient(135deg,#58c4a0,#4a9eff);border:none;border-radius:12px;color:#0d1117;font-weight:700;font-size:0.95rem;font-family:inherit">${editIndex!==null?'Save Changes':'Save Entry'}</button>
+      </div>
+    </div>`;
+  }
+
+  // ── HISTORY ──
+  if (currentTab==='history') {
+    html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem">
+      <div style="font-family:'DM Serif Display',serif;font-size:1.1rem">${entries.length} entries</div>
+      <button class="btn-primary" onclick="setTab('add')" style="background:linear-gradient(135deg,#58c4a0,#4a9eff);border:none;border-radius:9px;padding:0.45rem 1rem;color:#0d1117;font-weight:600;font-size:0.8rem;font-family:inherit">+ Add</button>
+    </div>
+    <div style="background:#161b22;border:1px solid #30363d;border-radius:14px;overflow:hidden">`;
+    if (entries.length===0) {
+      html+=`<div style="padding:2rem;text-align:center;color:#7d8590">No entries yet</div>`;
+    }
+    sortedDesc.forEach((e,di)=>{
+      const realIdx=entries.indexOf(e);
+      const posAsc=sortedAsc.indexOf(e);
+      const prev=posAsc>0?sortedAsc[posAsc-1]:null;
+      const change=prev?e.lbs-prev.lbs:null;
+      const dc=DOSE_COLORS[e.dose]||DOSE_COLORS.other;
+      const badge=change!==null?`<span style="font-size:0.72rem;color:${change<0?'#58c4a0':change>0?'#e05c7a':'#7d8590'};background:${change<0?'#58c4a011':change>0?'#e05c7a11':'#7d859011'};border-radius:100px;padding:0.1rem 0.5rem">${change>0?'+':''}${change} lbs</span>`:'';
+      html+=`<div class="row-hover" style="display:flex;align-items:center;padding:0.8rem 1rem;border-bottom:${di<sortedDesc.length-1?'1px solid #1e2530':'none'}">
+        <div style="width:8px;height:8px;border-radius:50%;background:${dc};margin-right:0.8rem;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:baseline;gap:0.6rem;flex-wrap:wrap">
+            <span style="font-weight:600;font-size:0.9rem">${lbsToStLbs(e.lbs)}</span>
+            <span style="font-size:0.75rem;color:#7d8590">${e.date}</span>${badge}
+          </div>
+          <div style="font-size:0.7rem;color:#7d8590;margin-top:0.15rem;display:flex;gap:0.6rem">
+            <span style="color:${dc}">${e.dose}</span>
+            <span>BMI ${e.bmi}</span>
+            ${e.notes?'<span>\u00b7 '+e.notes+'</span>':''}
+          </div>
+        </div>
+        <div style="display:flex;gap:0.4rem;flex-shrink:0">
+          <button class="edit-btn" onclick="handleEdit(${realIdx})" style="background:transparent;border:1px solid #30363d;border-radius:7px;padding:0.3rem 0.6rem;color:#7d8590;font-size:0.75rem;font-family:inherit">\u270f\ufe0f</button>
+          <button class="del-btn" onclick="openDeleteModal(${realIdx})" style="background:transparent;border:1px solid #30363d;border-radius:7px;padding:0.3rem 0.6rem;color:#7d8590;font-size:0.75rem;font-family:inherit">\uD83D\uDDD1</button>
+        </div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  document.getElementById('app').innerHTML=html;
+  if (currentTab==='dashboard') requestAnimationFrame(()=>drawChart('mainChart',sortedAsc));
+}
+
+// ── Boot ──
+checkSetup();
+</script>
+</body>
+</html>
