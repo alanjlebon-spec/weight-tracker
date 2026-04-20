@@ -81,6 +81,7 @@
 
 <script>
 const STORAGE_KEY = 'wt-api-url';
+const HARDCODED_URL = 'https://script.google.com/macros/s/https://alanjlebon-spec.github.io/weight-tracker//exec';
 const START_LBS = 252;
 const TARGET_LBS = 182;
 const HEIGHT_M = 1.73;
@@ -193,13 +194,13 @@ async function loadEntries() {
 
 // ── Setup ──
 function checkSetup() {
-  apiUrl = localStorage.getItem(STORAGE_KEY) || '';
+  apiUrl = HARDCODED_URL || localStorage.getItem(STORAGE_KEY) || '';
   if (apiUrl) {
+    localStorage.setItem(STORAGE_KEY, apiUrl);
     document.getElementById('setupModal').style.display = 'none';
     loadEntries();
   }
 }
-
 async function saveApiUrl() {
   const url = document.getElementById('setupUrl').value.trim();
   const errEl = document.getElementById('setupError');
